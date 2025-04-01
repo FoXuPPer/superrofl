@@ -1,9 +1,10 @@
 import random
 import asyncio
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
-TOKEN = "7694034051:AAGea7t8E89c88wpZoqtCQi0bdAwkFKOTTA"
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [[InlineKeyboardButton("Измерить скорость", callback_data="measure_speed")]]
