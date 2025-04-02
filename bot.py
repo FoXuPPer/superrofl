@@ -9,7 +9,7 @@ TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 # Функция для команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
  keyboard = [
- [InlineKeyboardButton("Запустить Speedtest", web_app={"url": "https://<your-mini-app-url>"})]
+ [InlineKeyboardButton("Запустить Speedtest", web_app={"url": "https://speedtestminiapp-production.up.railway.app"})]
  ]
  reply_markup = InlineKeyboardMarkup(keyboard)
  await update.message.reply_text(
