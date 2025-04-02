@@ -1,1 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Speedtest Mini App</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #005f99;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Speedtest</h1>
+        <button onclick="runSpeedTest()">Запустить тест</button>
+        <div id="result">Нажми на кнопку, чтобы начать тест.</div>
+    </div>
 
+    <script>
+        // URL тестового сервера (замени на свой сервер или используй публичный)
+        const TEST_SERVER_URL = "https://speedtest.example.com/testfile.bin"; // Пример URL
+        const TEST_FILE_SIZE_MB = 10; // Размер тестового файла в МБ
+
+        async function runSpeedTest() {
+            const resultDiv = document.getElementById("result");
+            resultDiv.innerHTML = "Запускаю тест скорости... 📡";
+
+            try {
+                // Измеряем пинг
+                const pingStart = performance.now();
+                await fetch("https://speedtest.example.com/ping", { method: "HEAD" });
+                const ping = performance.now() - pingStart;
+
+                // Измеряем скорость загрузки (download)
+                const downloadStart = performance.now();
+                const response = await fetch(TEST_SERVER_URL);
+                const blob = await response.blob();
+                const downloadTime = (performance.now() - downloadStart) / 1000; // Время в секундах
+                const downloadSpeed = (TEST_FILE_SIZE_MB * 8) / downloadTime; // Мбит/с
+
+                // Измеряем скорость выгрузки (upload)
+                const uploadStart = performance.now();
+                const formData = new FormData();
+                formData.append("file", new Blob([new ArrayBuffer(TEST_FILE_SIZE_MB * 1024 * 1024)]));
+                await fetch("https://speedtest.example.com/upload", {
+                    method: "POST",
+                    body: formData
+                });
+                const uploadTime = (performance.now() - uploadStart) / 1000; // Время в секундах
+                const uploadSpeed = (TEST_FILE_SIZE_MB * 8) / uploadTime; // Мбит/с
+
+                // Отображаем результаты
+                resultDiv.innerHTML = `
+                    📊 Результаты теста скорости:<br><br>
+                    Входящая скорость: ${downloadSpeed.toFixed(2)} Мбит/с<br>
+                    Исходящая скорость: ${uploadSpeed.toFixed(2)} Мбит/с<br>
+                    Пинг: ${ping.toFixed(2)} мс<br><br>
+                    Для более точного теста используй Speedtest.net.
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = "Ошибка при выполнении теста. Попробуй снова. 😔";
+                console.error(error);
+            }
+        }
+
+        // Интеграция с Telegram Web Apps (опционально)
+        window.Telegram.WebApp.ready();
+    </script>
+</body>
+</html>
