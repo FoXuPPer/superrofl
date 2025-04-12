@@ -14,8 +14,8 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instru
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Я умный бот. Напиши мне любой вопрос.\n"
-        "В группах обращайтесь ко мне через @" + BOT_USERNAME[1:] 
+        "Привет! Я умный бот от создателей @treshdurov.\n"
+        "Вы можете добавить меня в группу и обращаться со мной через @" + BOT_USERNAME[1:] 
     )
 
 async def query_openrouter(message: str) -> str:
