@@ -3,10 +3,11 @@ import aiohttp
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-# Получаем токены из переменных окружения
+# Получаем токены и настройки из переменных окружения
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 BOT_USERNAME = os.getenv("BOT_USERNAME")  # Имя бота, например @YourBotName
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")  # Модель по умолчанию
 
 # Функция для команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -23,7 +24,7 @@ async def query_openrouter(message: str) -> str:
         "Content-Type": "application/json"
     }
     data = {
-        "model": "meta-llama/llama-3.1-8b-instruct:free",  # Бесплатная модель
+        "model": OPENROUTER_MODEL,  # Используем модель из переменной окружения
         "messages": [{"role": "user", "content": message}]
     }
 
@@ -51,9 +52,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("Напиши мне что-нибудь, и я отвечу с помощью нейросети!")
         return
 
+    # Отправляем временное сообщение "Думаю..." и сохраняем его
+    thinking_message = await message.reply_text("Думаю... 🤔")
+
     # Отправляем запрос к OpenRouter.ai
-    await message.reply_text("Думаю... 🤔")
     response = await query_openrouter(text)
+
+    # Удаляем сообщение "Думаю..."
+    await thinking_message.delete()
+
+    # Отправляем ответ
     await message.reply_text(response)
 
 def main():
