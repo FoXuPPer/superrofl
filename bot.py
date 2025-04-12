@@ -10,8 +10,8 @@ OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Я бот с нейросетью. Напиши мне любой вопрос, и я отвечу! 🤖\n"
-        "В группах обращайся ко мне через @" + BOT_USERNAME[1:]  # Убираем @ из имени
+        "Привет! Я умный бот. Напиши мне любой вопрос, и я отвечу!\n"
+        "В группах обращайся ко мне через @" + BOT_USERNAME[1:]  
     )
     
 async def query_openrouter(message: str) -> str:
