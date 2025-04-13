@@ -1,31 +1,59 @@
 import os
 import aiohttp
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-BOT_USERNAME = os.getenv("BOT_USERNAME") 
-OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free") 
+BOT_USERNAME = os.getenv("BOT_USERNAME")  
+DEFAULT_MODEL = "meta-llama/llama-4-maverick:free"  
+
+MODELS = {
+    "google/gemini-2.5-pro-exp-03-25:free": "Gemini 2.5 pro exp",
+    "deepseek/deepseek-r1-zero:free": "DeepSeek r1 zero",
+    "qwen/qwq-32b:free": "Qwen QwQ 32B"
+}
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "Привет! Я умный бот от создателей @treshdurov.\n"
-        "Вы можете добавить меня в группу и обращаться со мной через @" + BOT_USERNAME[1:] 
+        "Привет! Я умный бот. Напиши мне любой вопрос\n"
+        "Используйте /model, чтобы выбрать модель для генерации ответов.\n"
+        "В группах обращайтесь ко мне через @" + BOT_USERNAME[1:] 
     )
 
-async def query_openrouter(message: str) -> str:
+async def model(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton(name, callback_data=model_id)]
+        for model_id, name in MODELS.items()
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Выберите модель для генерации ответов:", reply_markup=reply_markup)
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    model_id = query.data
+    if model_id in MODELS:
+        context.user_data["model"] = model_id  
+        await query.message.reply_text(f"Выбрана модель: {MODELS[model_id]}")
+    else:
+        await query.message.reply_text("Ошибка: модель не найдена.")
+
+async def query_openrouter(message: str, model: str) -> str:
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
     data = {
-        "model": OPENROUTER_MODEL,
+        "model": model,
         "messages": [
             {"role": "system", "content": "Ты умный и полезный ассистент. Отвечай кратко, но информативно, как эксперт в теме."},
             {"role": "user", "content": message}
@@ -55,16 +83,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message.chat.type in ["group", "supergroup"]:
         if not text.startswith(BOT_USERNAME):
             return  
-        text = text[len(BOT_USERNAME):].strip() 
+        text = text[len(BOT_USERNAME):].strip()  
 
     if not text:
-        await message.reply_text("Напишите мне что-нибудь, и я отвечу.")
+        await message.reply_text("Напиши мне что-нибудь, и я отвечу")
         return
 
-    thinking_message = await message.reply_text("ща")
+    model = context.user_data.get("model", DEFAULT_MODEL)
 
-    response = await query_openrouter(text)
+    thinking_message = await message.reply_text("Думаю...")
 
+    response = await query_openrouter(text, model)
     try:
         await thinking_message.delete()
     except Exception as e:
@@ -75,6 +104,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("model", model))
+    app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("Бот запущен...")
     app.run_polling()
