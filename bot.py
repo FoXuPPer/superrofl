@@ -42,7 +42,7 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     model_id = query.data
     if model_id in MODELS:
         context.user_data["model"] = model_id  
-        await query.message.reply_text(f"Выбрана модель: {MODELS[model_id]}")
+        await query.message.chat.send_message(f"Выбрана модель: {MODELS[model_id]}")
         await query.message.delete()
     else:
         await query.message.reply_text("Ошибка: модель не найдена.")
