@@ -15,8 +15,8 @@ BOT_USERNAME = os.getenv("BOT_USERNAME")
 DEFAULT_MODEL = "meta-llama/llama-4-maverick:free"  
 
 MODELS = {
+    "meta-llama/llama-4-maverick:free": "Llama 4 Maverick",
     "google/gemini-2.5-pro-exp-03-25:free": "Gemini 2.5 pro exp",
-    "deepseek/deepseek-r1-zero:free": "DeepSeek r1 zero",
     "qwen/qwq-32b:free": "Qwen QwQ 32B"
 }
 
@@ -43,8 +43,10 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if model_id in MODELS:
         context.user_data["model"] = model_id  
         await query.message.reply_text(f"Выбрана модель: {MODELS[model_id]}")
+        await query.message.delete()
     else:
         await query.message.reply_text("Ошибка: модель не найдена.")
+        await query.message.delete()
 
 async def query_openrouter(message: str, model: str) -> str:
     url = "https://openrouter.ai/api/v1/chat/completions"
