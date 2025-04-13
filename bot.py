@@ -22,7 +22,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Привет! Я умный бот. Напиши мне любой вопрос\n"
         "Используйте /model, чтобы выбрать модель для генерации ответов.\n"
-        "В группах обращайтесь ко мне через @" + BOT_USERNAME[1:] 
+        "В группах обращайтесь ко мне через @" + BOT_USERNAME[1:] ", либо переслав любое моё сообщение"
     )
 
 async def model(update: Update, context: ContextTypes.DEFAULT_TYPE):
