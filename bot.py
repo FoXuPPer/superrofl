@@ -4,10 +4,8 @@ import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
@@ -34,11 +32,10 @@ async def model(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Выберите модель для генерации ответов:", reply_markup=reply_markup)
-
+    
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
     model_id = query.data
     if model_id in MODELS:
         context.user_data["model"] = model_id  
@@ -83,24 +80,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = message.text
 
     if message.chat.type in ["group", "supergroup"]:
-        if not text.startswith(BOT_USERNAME):
-            return  
-        text = text[len(BOT_USERNAME):].strip()  
-
+        if message.reply_to_message and message.reply_to_message.from_user.username == BOT_USERNAME[1:]:
+            pass 
+        else:
+            if not text.startswith(BOT_USERNAME):
+                return 
+            text = text[len(BOT_USERNAME):].strip() 
     if not text:
-        await message.reply_text("Напиши мне что-нибудь, и я отвечу")
+        await message.reply_text("Напиши мне что-нибудь, и я отвечу с помощью нейросети!")
         return
-
     model = context.user_data.get("model", DEFAULT_MODEL)
-
     thinking_message = await message.reply_text("Думаю...")
-
     response = await query_openrouter(text, model)
+
     try:
         await thinking_message.delete()
     except Exception as e:
         logger.error(f"Failed to delete thinking message: {str(e)}")
-
     await message.reply_text(response)
 
 def main():
