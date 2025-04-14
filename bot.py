@@ -132,21 +132,21 @@ async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text("Эта команда работает только в группах.")
         return
     
-    args = context.args
-    if not args:
+    text = message.text
+    if len(text) <= 4:  
         await message.reply_text("Укажите вопрос после команды.")
         return
-    question = " ".join(args) 
+    question = text[4:].strip() 
     
     try:
         chat_members_count = await context.bot.get_chat_member_count(message.chat.id)
         if chat_members_count <= 1:
             await message.reply_text("В группе нет участников для выбора.")
             return
-
+        
         if "group_members" not in context.chat_data:
             context.chat_data["group_members"] = {}
-            
+
         sender = message.from_user
         if not sender.is_bot:
             context.chat_data["group_members"][sender.id] = sender
@@ -174,7 +174,7 @@ def main():
     app.add_handler(CommandHandler("model", model))
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    app.add_handler(CommandHandler("кто", who))
+    app.add_handler(MessageHandler(filters.Regex(r'^!кто\b'), who))
     print("Бот запущен...")
     app.run_polling()
 
