@@ -182,28 +182,29 @@ async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
-
+    
     if message.chat.type not in ["group", "supergroup"]:
         await message.reply_text("Эта команда работает только в группах.")
         return
     
     text = message.text
-    nickname = text[4:].strip() if len(text) > 4 else None  
+    nickname = text[4:].strip() if len(text) > 4 else "" 
     
     user = message.from_user
     user_id = str(user.id)
-    real_name = user.username if user.username else user.first_name
+    real_name = user.first_name  
     mention = f"[{real_name}](tg://user?id={user_id})"
     
     if "nicknames" not in context.chat_data:
         context.chat_data["nicknames"] = {}
     
     if not nickname:
-        if user_id in context.chat_data["nicknames"]:
+        if user_id in context.chat_data["nicknames"] and context.chat_data["nicknames"][user_id]:
             current_nickname = context.chat_data["nicknames"][user_id]
-            await message.reply_text(f"🗓 Ник пользователя {mention} : «{nickname}»")
+            response = f"🗓 Ник пользователя {mention} : «{current_nickname}»"
         else:
-            await message.reply_text("У вас пока нет ника.")
+            response = f"🗓 У пользователя {mention} пока нет ника."
+        await message.reply_text(response, parse_mode="Markdown")
         return
     
     context.chat_data["nicknames"][user_id] = nickname
