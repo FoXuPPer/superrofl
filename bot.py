@@ -200,11 +200,22 @@ async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "nicknames" not in context.chat_data:
         context.chat_data["nicknames"] = {}
     
-    user_id = str(message.from_user.id)
-    context.chat_data["nicknames"][user_id] = nickname
+    user = message.from_user
+    user_id = str(user.id)
+    real_name = user.username if user.username else user.first_name
+    mention = f"[{real_name}](tg://user?id={user_id})"
+    
+    if user_id in context.chat_data["nicknames"]:
+        old_nickname = context.chat_data["nicknames"][user_id]
+        context.chat_data["nicknames"][user_id] = nickname
+        response = f"✅ Ник {mention} изменён на «{nickname}»"
+    else:
+        context.chat_data["nicknames"][user_id] = nickname
+        response = f"🗓 Ник пользователя {mention} : «{nickname}»"
+    
     logger.info(f"Установлен ник для {user_id}: {nickname}")
     
-    await message.reply_text(f"Ник установлен: {nickname}.")
+    await message.reply_text(response, parse_mode="Markdown")
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
