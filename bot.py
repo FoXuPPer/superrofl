@@ -127,13 +127,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
-    
+    logger.info(f"Команда !кто получена: {message.text}")
+
     if message.chat.type not in ["group", "supergroup"]:
         await message.reply_text("Эта команда работает только в группах.")
         return
-    
+        
     text = message.text
-    if len(text) <= 4:  
+    if len(text) <= 4: 
         await message.reply_text("Укажите вопрос после команды.")
         return
     question = text[4:].strip() 
@@ -146,27 +147,64 @@ async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         if "group_members" not in context.chat_data:
             context.chat_data["group_members"] = {}
+            logger.info("Инициализирован пустой group_members")
 
         sender = message.from_user
         if not sender.is_bot:
             context.chat_data["group_members"][sender.id] = sender
+            logger.info(f"Добавлен участник в group_members: {sender.id}")
 
         all_members = [user for user in context.chat_data["group_members"].values() if not user.is_bot]
+        logger.info(f"Доступные участники: {len(all_members)}")
         
         if not all_members:
             await message.reply_text("Не удалось найти участников. Попробуй позже, когда кто-то напишет в чат.")
             return
         
         random_member = random.choice(all_members)
-        username = random_member.username if random_member.username else random_member.first_name
+        
+        user_id = str(random_member.id)
+        if "nicknames" in context.chat_data and user_id in context.chat_data["nicknames"]:
+            display_name = context.chat_data["nicknames"][user_id]
+        else:
+            display_name = random_member.username if random_member.username else random_member.first_name
+        
+        mention = f"[{display_name}](tg://user?id={random_member.id})"
         
         intro = random.choice(INTROS)
-        response = f"{intro}, что @{username} {question}"
-        await message.reply_text(response)
+        response = f"{intro}, что {mention} {question}"
+        
+        await message.reply_text(response, parse_mode="Markdown")
     
     except Exception as e:
         logger.error(f"Ошибка в команде !кто: {str(e)}")
         await message.reply_text("Произошла ошибка при выборе участника.")
+
+async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    
+    if message.chat.type not in ["group", "supergroup"]:
+        await message.reply_text("Эта команда работает только в группах.")
+        return
+    
+    text = message.text
+    if len(text) <= 4: 
+        await message.reply_text("Укажите ник после команды.")
+        return
+    nickname = text[4:].strip() 
+    
+    if not nickname:
+        await message.reply_text("Ник не может быть пустым.")
+        return
+    
+    if "nicknames" not in context.chat_data:
+        context.chat_data["nicknames"] = {}
+    
+    user_id = str(message.from_user.id)
+    context.chat_data["nicknames"][user_id] = nickname
+    logger.info(f"Установлен ник для {user_id}: {nickname}")
+    
+    await message.reply_text(f"Ник установлен: {nickname}.")
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -174,6 +212,7 @@ def main():
     app.add_handler(CommandHandler("model", model))
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.Regex(r'^!кто\b'), who))
+    app.add_handler(MessageHandler(filters.Regex(r'^!ник\b'), set_nickname))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("Бот запущен...")
     app.run_polling()
