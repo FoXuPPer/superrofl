@@ -182,39 +182,34 @@ async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
-    
+
     if message.chat.type not in ["group", "supergroup"]:
         await message.reply_text("Эта команда работает только в группах.")
         return
     
     text = message.text
-    if len(text) <= 4: 
-        await message.reply_text("Укажите ник после команды.")
-        return
-    nickname = text[4:].strip() 
-    
-    if not nickname:
-        await message.reply_text("Ник не может быть пустым.")
-        return
-    
-    if "nicknames" not in context.chat_data:
-        context.chat_data["nicknames"] = {}
+    nickname = text[4:].strip() if len(text) > 4 else None  
     
     user = message.from_user
     user_id = str(user.id)
     real_name = user.username if user.username else user.first_name
     mention = f"[{real_name}](tg://user?id={user_id})"
     
-    if user_id in context.chat_data["nicknames"]:
-        old_nickname = context.chat_data["nicknames"][user_id]
-        context.chat_data["nicknames"][user_id] = nickname
-        response = f"✅ Ник {mention} изменён на «{nickname}»"
-    else:
-        context.chat_data["nicknames"][user_id] = nickname
-        response = f"🗓 Ник пользователя {mention} : «{nickname}»"
+    if "nicknames" not in context.chat_data:
+        context.chat_data["nicknames"] = {}
     
+    if not nickname:
+        if user_id in context.chat_data["nicknames"]:
+            current_nickname = context.chat_data["nicknames"][user_id]
+            await message.reply_text(f"🗓 Ник пользователя {mention} : «{nickname}»")
+        else:
+            await message.reply_text("У вас пока нет ника.")
+        return
+    
+    context.chat_data["nicknames"][user_id] = nickname
     logger.info(f"Установлен ник для {user_id}: {nickname}")
     
+    response = f"✅ Ник {mention} изменён на «{nickname}»"
     await message.reply_text(response, parse_mode="Markdown")
 
 def main():
