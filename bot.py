@@ -96,14 +96,9 @@ async def query_openrouter(message: str, model: str) -> str:
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     text = message.text
+    logger.info(f"Получено сообщение: {text}")
 
     if message.chat.type in ["group", "supergroup"]:
-        sender = message.from_user
-        if not sender.is_bot: 
-            if "group_members" not in context.chat_data:
-                context.chat_data["group_members"] = {}
-            context.chat_data["group_members"][sender.id] = sender
-
         if message.reply_to_message and message.reply_to_message.from_user.username == BOT_USERNAME[1:]:
             pass 
         else:
@@ -112,7 +107,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = text[len(BOT_USERNAME):].strip() 
 
     if not text:
-        await message.reply_text("Напиши мне что-нибудь, и я отвечу с помощью нейросети!")
+        await message.reply_text("Напишите мне что-нибудь, и я отвечу с помощью нейросети!")
         return
 
     model = context.user_data.get("model", DEFAULT_MODEL)
@@ -123,61 +118,79 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await thinking_message.delete()
     except Exception as e:
         logger.error(f"Failed to delete thinking message: {str(e)}")
+
     await message.reply_text(response)
     
 async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
-    logger.info(f"Команда !кто получена: {message.text}")
-
+    logger.info(f"Команда !кто/!кого получена: {message.text}")
+    
     if message.chat.type not in ["group", "supergroup"]:
         await message.reply_text("Эта команда работает только в группах.")
         return
-        
+
     text = message.text
-    if len(text) <= 4: 
+    command = "кто" if text.startswith("!кто") else "кого"
+    command_length = len(command) + 1  
+    
+    if len(text) <= command_length:
         await message.reply_text("Укажите вопрос после команды.")
         return
-    question = text[4:].strip() 
+    question = text[command_length:].strip() 
     
     try:
-        chat_members_count = await context.bot.get_chat_member_count(message.chat.id)
-        if chat_members_count <= 1:
-            await message.reply_text("В группе нет участников для выбора.")
-            return
-        
-        if "group_members" not in context.chat_data:
-            context.chat_data["group_members"] = {}
-            logger.info("Инициализирован пустой group_members")
+        chat_admins = await context.bot.get_chat_administrators(message.chat.id)
 
-        sender = message.from_user
-        if not sender.is_bot:
-            context.chat_data["group_members"][sender.id] = sender
-            logger.info(f"Добавлен участник в group_members: {sender.id}")
-
-        all_members = [user for user in context.chat_data["group_members"].values() if not user.is_bot]
-        logger.info(f"Доступные участники: {len(all_members)}")
+        all_members = [admin.user for admin in chat_admins if not admin.user.is_bot]
+        logger.info(f"Доступные участники (администраторы): {len(all_members)}")
         
         if not all_members:
-            await message.reply_text("Не удалось найти участников. Попробуй позже, когда кто-то напишет в чат.")
+            await message.reply_text("Не удалось найти участников среди администраторов группы.")
             return
-        
-        random_member = random.choice(all_members)
-        
-        user_id = str(random_member.id)
-        if "nicknames" in context.chat_data and user_id in context.chat_data["nicknames"]:
-            display_name = context.chat_data["nicknames"][user_id]
-        else:
-            display_name = random_member.username if random_member.username else random_member.first_name
-        
-        mention = f"[{display_name}](tg://user?id={random_member.id})"
-        
-        intro = random.choice(INTROS)
-        response = f"{intro}, что {mention} {question}"
+
+        if command == "кто":
+            random_member = random.choice(all_members)
+            
+            user_id = str(random_member.id)
+            if "nicknames" in context.chat_data and user_id in context.chat_data["nicknames"]:
+                display_name = context.chat_data["nicknames"][user_id]
+            else:
+                display_name = random_member.first_name
+            
+            mention = f"[{display_name}](tg://user?id={random_member.id})"
+            
+            intro = random.choice(INTROS)
+            response = f"{intro}, что {mention} {question}"
+            
+        else:  
+            if len(all_members) < 2:
+                await message.reply_text("Нужно как минимум два участника для команды !кого.")
+                return
+            
+            member1 = random.choice(all_members)
+            all_members.remove(member1) 
+            member2 = random.choice(all_members)
+            
+            user1_id = str(member1.id)
+            user2_id = str(member2.id)
+            display_name1 = context.chat_data["nicknames"][user1_id] if "nicknames" in context.chat_data and user1_id in context.chat_data["nicknames"] else member1.first_name
+            display_name2 = context.chat_data["nicknames"][user2_id] if "nicknames" in context.chat_data and user2_id in context.chat_data["nicknames"] else member2.first_name
+            
+            mention1 = f"[{display_name1}](tg://user?id={member1.id})"
+            mention2 = f"[{display_name2}](tg://user?id={member2.id})"
+            
+            intro = random.choice(INTROS)
+            question_lower = question.lower()
+            if question_lower.startswith("я ") or question_lower.startswith("ты "):
+                action = question.split(" ", 1)[1] if " " in question else question
+                response = f"{intro}, что {mention1} {action} {mention2}"
+            else:
+                response = f"{intro}, что {mention2} {question}"
         
         await message.reply_text(response, parse_mode="Markdown")
     
     except Exception as e:
-        logger.error(f"Ошибка в команде !кто: {str(e)}")
+        logger.error(f"Ошибка в команде !кто/!кого: {str(e)}")
         await message.reply_text("Произошла ошибка при выборе участника.")
 
 async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -218,7 +231,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("model", model))
     app.add_handler(CallbackQueryHandler(button))
-    app.add_handler(MessageHandler(filters.Regex(r'^!кто\b'), who))
+    app.add_handler(MessageHandler(filters.Regex(r'^!(кто|кого)\b'), who))
     app.add_handler(MessageHandler(filters.Regex(r'^!ник\b'), set_nickname))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("Бот запущен...")
