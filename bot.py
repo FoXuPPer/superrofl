@@ -1,8 +1,16 @@
 import os
 import aiohttp
 import logging
+import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+
+INTROS = [
+    "☝️ Я уверен",
+    "🔭 Звёзды говорят",
+    "🤔 Я думаю",
+    "🔮 Ясно вижу"
+]
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -98,6 +106,47 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Failed to delete thinking message: {str(e)}")
     await message.reply_text(response)
+    
+async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    
+    if message.chat.type not in ["group", "supergroup"]:
+        await message.reply_text("Эта команда работает только в группах.")
+        return
+    
+    args = context.args
+    if not args:
+        await message.reply_text("Укажите вопрос после команды.")
+        return
+    question = " ".join(args)  
+    
+    try:
+        chat_admins = await context.bot.get_chat_administrators(message.chat.id)
+        chat_members = await context.bot.get_chat_member_count(message.chat.id)
+        
+        if chat_members <= 1:
+            await message.reply_text("В группе нет участников для выбора.")
+            return
+        
+        all_members = []
+        async for member in context.bot.get_chat_members(message.chat.id):
+            if not member.user.is_bot: 
+                all_members.append(member.user)
+        
+        if not all_members:
+            await message.reply_text("Не удалось найти участников, кроме ботов.")
+            return
+        
+        random_member = random.choice(all_members)
+        username = random_member.username if random_member.username else random_member.first_name
+        
+        intro = random.choice(INTROS)
+        response = f"{intro}, что @{username} {question}"
+        await message.reply_text(response)
+    
+    except Exception as e:
+        logger.error(f"Ошибка в команде !кто: {str(e)}")
+        await message.reply_text("Произошла ошибка при выборе участника.")
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -105,6 +154,7 @@ def main():
     app.add_handler(CommandHandler("model", model))
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.add_handler(CommandHandler("кто", who))
     print("Бот запущен...")
     app.run_polling()
 
