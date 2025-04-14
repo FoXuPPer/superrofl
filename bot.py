@@ -18,12 +18,12 @@ logger = logging.getLogger(__name__)
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 BOT_USERNAME = os.getenv("BOT_USERNAME")  
-DEFAULT_MODEL = "meta-llama/llama-4-maverick:free"  
+DEFAULT_MODEL = "meta-llama/llama-3.1-8b-instruct:free" 
 
 MODELS = {
-    "meta-llama/llama-4-maverick:free": "Llama 4 Maverick",
-    "google/gemini-2.5-pro-exp-03-25:free": "Gemini 2.5 pro exp",
-    "qwen/qwq-32b:free": "Qwen QwQ 32B"
+    "meta-llama/llama-3.1-8b-instruct:free": "LLaMA 3.1 8B (Free)",
+    "google/gemma-2-9b-it:free": "Gemma 2 9B (Free)", 
+    "qwen/qwen-2-72b-instruct:free": "Qwen 2 72B (Free)"
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -74,11 +74,21 @@ async def query_openrouter(message: str, model: str) -> str:
                 if response.status == 200:
                     result = await response.json()
                     logger.info(f"OpenRouter API response: {result}")
-                    return result["choices"][0]["message"]["content"]
+                    # Проверяем наличие ключа 'choices'
+                    if "choices" in result and result["choices"]:
+                        return result["choices"][0]["message"]["content"]
+                    else:
+                        logger.error(f"OpenRouter API response missing 'choices': {result}")
+                        return "Ошибка: ответ от нейросети не содержит ожидаемых данных. Попробуй выбрать другую модель с помощью /model."
                 else:
                     error_text = await response.text()
                     logger.error(f"OpenRouter API error: {response.status} - {error_text}")
-                    return f"Ошибка при обращении к нейросети: {response.status} - {error_text}"
+                    if response.status == 429:
+                        return "Ошибка: превышен лимит запросов. Подожди немного или выбери другую модель с помощью /model."
+                    elif response.status == 401:
+                        return "Ошибка: неверный API-ключ. Пожалуйста, сообщи администратору бота."
+                    else:
+                        return f"Ошибка при обращении к нейросети: {response.status} - {error_text}"
     except Exception as e:
         logger.error(f"Exception in query_openrouter: {str(e)}")
         return f"Произошла ошибка при обращении к нейросети: {str(e)}"
@@ -88,15 +98,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = message.text
 
     if message.chat.type in ["group", "supergroup"]:
+        sender = message.from_user
+        if not sender.is_bot: 
+            if "group_members" not in context.chat_data:
+                context.chat_data["group_members"] = {}
+            context.chat_data["group_members"][sender.id] = sender
+
         if message.reply_to_message and message.reply_to_message.from_user.username == BOT_USERNAME[1:]:
             pass 
         else:
             if not text.startswith(BOT_USERNAME):
                 return 
             text = text[len(BOT_USERNAME):].strip() 
+
     if not text:
         await message.reply_text("Напиши мне что-нибудь, и я отвечу с помощью нейросети!")
         return
+
     model = context.user_data.get("model", DEFAULT_MODEL)
     thinking_message = await message.reply_text("Думаю...")
     response = await query_openrouter(text, model)
@@ -118,23 +136,25 @@ async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not args:
         await message.reply_text("Укажите вопрос после команды.")
         return
-    question = " ".join(args)  
+    question = " ".join(args) 
     
     try:
-        chat_admins = await context.bot.get_chat_administrators(message.chat.id)
-        chat_members = await context.bot.get_chat_member_count(message.chat.id)
-        
-        if chat_members <= 1:
+        chat_members_count = await context.bot.get_chat_member_count(message.chat.id)
+        if chat_members_count <= 1:
             await message.reply_text("В группе нет участников для выбора.")
             return
-        
-        all_members = []
-        async for member in context.bot.get_chat_members(message.chat.id):
-            if not member.user.is_bot: 
-                all_members.append(member.user)
+
+        if "group_members" not in context.chat_data:
+            context.chat_data["group_members"] = {}
+            
+        sender = message.from_user
+        if not sender.is_bot:
+            context.chat_data["group_members"][sender.id] = sender
+
+        all_members = [user for user in context.chat_data["group_members"].values() if not user.is_bot]
         
         if not all_members:
-            await message.reply_text("Не удалось найти участников, кроме ботов.")
+            await message.reply_text("Не удалось найти участников. Попробуй позже, когда кто-то напишет в чат.")
             return
         
         random_member = random.choice(all_members)
