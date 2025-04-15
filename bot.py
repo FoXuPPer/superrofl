@@ -21,9 +21,11 @@ BOT_USERNAME = os.getenv("BOT_USERNAME")
 DEFAULT_MODEL = "meta-llama/llama-3.1-8b-instruct:free" 
 
 MODELS = {
-    "meta-llama/llama-3.1-8b-instruct:free": "LLaMA 3.1 8B (Free)",
-    "google/gemma-2-9b-it:free": "Gemma 2 9B (Free)", 
-    "qwen/qwen-2-72b-instruct:free": "Qwen 2 72B (Free)"
+    "meta-llama/llama-3.1-8b-instruct:free": "LLaMA 3.1",
+    "google/gemma-2-9b-it:free": "Gemma 2", 
+    "qwen/qwen-2-72b-instruct:free": "Qwen 2",
+    "meta-llama/llama-4-maverick:free": "LLaMa 4",
+    "google/gemini-2.5-pro-exp-03-25:free": "Gemini 2.5 pro"
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
