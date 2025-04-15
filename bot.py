@@ -55,18 +55,27 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Ошибка: модель не найдена.")
         await query.message.delete()
 
-async def query_openrouter(message: str, model: str) -> str:
+async def query_openrouter(message: str, model: str, context: ContextTypes.DEFAULT_TYPE) -> str:
     url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
+    
+    messages = [
+        {"role": "system", "content": "Ты умный и полезный ассистент. Отвечай кратко, но информативно, как эксперт в теме."}
+    ]
+    
+    if "chat_history" in context.user_data and context.user_data["chat_history"]:
+        for entry in context.user_data["chat_history"]:
+            messages.append({"role": "user", "content": entry["question"]})
+            messages.append({"role": "assistant", "content": entry["response"]})
+    
+    messages.append({"role": "user", "content": message})
+    
     data = {
         "model": model,
-        "messages": [
-            {"role": "system", "content": "Ты умный и полезный ассистент. Отвечай кратко, но информативно, как эксперт в теме."},
-            {"role": "user", "content": message}
-        ]
+        "messages": messages
     }
 
     try:
@@ -76,19 +85,18 @@ async def query_openrouter(message: str, model: str) -> str:
                 if response.status == 200:
                     result = await response.json()
                     logger.info(f"OpenRouter API response: {result}")
-                    # Проверяем наличие ключа 'choices'
                     if "choices" in result and result["choices"]:
                         return result["choices"][0]["message"]["content"]
                     else:
                         logger.error(f"OpenRouter API response missing 'choices': {result}")
-                        return "Ошибка: ответ от нейросети не содержит ожидаемых данных. Попробуй выбрать другую модель с помощью /model."
+                        return "Ошибка: ответ от нейросети не содержит ожидаемых данных. Попробуйте выбрать другую модель с помощью /model."
                 else:
                     error_text = await response.text()
                     logger.error(f"OpenRouter API error: {response.status} - {error_text}")
                     if response.status == 429:
-                        return "Ошибка: превышен лимит запросов. Подожди немного или выбери другую модель с помощью /model."
+                        return "Ошибка: превышен лимит запросов. Подождите немного или выберите другую модель с помощью /model."
                     elif response.status == 401:
-                        return "Ошибка: неверный API-ключ. Пожалуйста, сообщи администратору бота."
+                        return "Ошибка: неверный API-ключ. Пожалуйста, сообщите администратору бота."
                     else:
                         return f"Ошибка при обращении к нейросети: {response.status} - {error_text}"
     except Exception as e:
@@ -108,31 +116,35 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return 
             text = text[len(BOT_USERNAME):].strip() 
 
+
     if not text:
-        await message.reply_text("Напишите мне что-нибудь, и я отвечу с помощью нейросети.")
+        await message.reply_text("Напиши мне что-нибудь, и я отвечу с помощью нейросети!")
         return
 
     if "chat_history" not in context.user_data:
         context.user_data["chat_history"] = []
+        logger.info("Инициализирована пустая история переписки")
 
     model = context.user_data.get("model", DEFAULT_MODEL)
 
     thinking_message = await message.reply_text("Думаю...")
 
-    response = await query_openrouter(text, model)
+    response = await query_openrouter(text, model, context)
 
     context.user_data["chat_history"].append({
         "question": text,
         "response": response
     })
-    
+    logger.info(f"Добавлено в историю: вопрос='{text}', ответ='{response}'")
     if len(context.user_data["chat_history"]) > 10:
         context.user_data["chat_history"] = context.user_data["chat_history"][-10:]
+
     try:
         await thinking_message.delete()
     except Exception as e:
         logger.error(f"Failed to delete thinking message: {str(e)}")
 
+    # Отправляем ответ
     await message.reply_text(response)
     
 async def who(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -244,9 +256,9 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     
     if "chat_history" not in context.user_data or not context.user_data["chat_history"]:
-        await message.reply_text("История переписки с нейросетью пуста.")
+        await message.reply_text("История переписки с нейросетью пуста. Задай мне вопрос, чтобы начать!")
         return
-    
+
     history_text = "📜 История переписки с нейросетью:\n\n"
     for i, entry in enumerate(context.user_data["chat_history"], 1):
         history_text += f"{i}. **Вопрос:** {entry['question']}\n**Ответ:** {entry['response']}\n\n"
