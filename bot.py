@@ -9,7 +9,8 @@ INTROS = [
     "☝️ Я уверен",
     "🔭 Звёзды говорят",
     "🤔 Я думаю",
-    "🔮 Ясно вижу"
+    "🔮 Ясно вижу",
+    "Шар пиздит"
 ]
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
