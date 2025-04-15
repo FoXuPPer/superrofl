@@ -9,8 +9,7 @@ INTROS = [
     "☝️ Я уверен",
     "🔭 Звёзды говорят",
     "🤔 Я думаю",
-    "🔮 Ясно вижу",
-    "Шар пиздит"
+    "🔮 Ясно вижу"
 ]
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -22,11 +21,11 @@ BOT_USERNAME = os.getenv("BOT_USERNAME")
 DEFAULT_MODEL = "meta-llama/llama-3.1-8b-instruct:free" 
 
 MODELS = {
-    "meta-llama/llama-3.1-8b-instruct:free": "LLaMA 3.1",
-    "google/gemma-2-9b-it:free": "Gemma 2", 
-    "qwen/qwen-2-72b-instruct:free": "Qwen 2",
-    "meta-llama/llama-4-maverick:free": "LLaMa 4",
-    "google/gemini-2.5-pro-exp-03-25:free": "Gemini 2.5 pro"
+    "meta-llama/llama-3.1-8b-instruct:free": "LLaMA 3.1 (тупой)",
+    "google/gemma-2-9b-it:free": "Gemma 2 (?)", 
+    "qwen/qwen-2-72b-instruct:free": "Qwen 2 (?)",
+    "meta-llama/llama-4-maverick:free": "LLaMa 4 (умный)",
+    "google/gemini-2.5-pro-exp-03-25:free": "Gemini 2.5 pro (умный)"
 }
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -110,13 +109,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = text[len(BOT_USERNAME):].strip() 
 
     if not text:
-        await message.reply_text("Напишите мне что-нибудь, и я отвечу с помощью нейросети!")
+        await message.reply_text("Напишите мне что-нибудь, и я отвечу с помощью нейросети.")
         return
 
+    if "chat_history" not in context.user_data:
+        context.user_data["chat_history"] = []
+
     model = context.user_data.get("model", DEFAULT_MODEL)
+
     thinking_message = await message.reply_text("Думаю...")
+
     response = await query_openrouter(text, model)
 
+    context.user_data["chat_history"].append({
+        "question": text,
+        "response": response
+    })
+    
+    if len(context.user_data["chat_history"]) > 10:
+        context.user_data["chat_history"] = context.user_data["chat_history"][-10:]
     try:
         await thinking_message.delete()
     except Exception as e:
@@ -229,6 +240,19 @@ async def set_nickname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response = f"✅ Ник {mention} изменён на «{nickname}»"
     await message.reply_text(response, parse_mode="Markdown")
 
+async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    
+    if "chat_history" not in context.user_data or not context.user_data["chat_history"]:
+        await message.reply_text("История переписки с нейросетью пуста.")
+        return
+    
+    history_text = "📜 История переписки с нейросетью:\n\n"
+    for i, entry in enumerate(context.user_data["chat_history"], 1):
+        history_text += f"{i}. **Вопрос:** {entry['question']}\n**Ответ:** {entry['response']}\n\n"
+    
+    await message.reply_text(history_text, parse_mode="Markdown")
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -236,6 +260,7 @@ def main():
     app.add_handler(CallbackQueryHandler(button))
     app.add_handler(MessageHandler(filters.Regex(r'^!(кто|кого)\b'), who))
     app.add_handler(MessageHandler(filters.Regex(r'^!ник\b'), set_nickname))
+    app.add_handler(MessageHandler(filters.Regex(r'^!история\b'), show_history))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("Бот запущен...")
     app.run_polling()
