@@ -268,11 +268,11 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     
-    web_app = WebAppInfo(url="megagame-production.up.railway.app")
+    web_app = WebAppInfo(url="https://megagame-production.up.railway.app/")
     button = InlineKeyboardButton(text="Играть в Agar.io", web_app=web_app)
     keyboard = InlineKeyboardMarkup([[button]])
     
-    await message.reply_text("Нажми кнопку, чтобы запустить Agar.io!", reply_markup=keyboard)
+    await message.reply_text("Нажмите кнопку, чтобы запустить Agar.io", reply_markup=keyboard)
 
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
