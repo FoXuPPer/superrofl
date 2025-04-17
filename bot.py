@@ -265,6 +265,15 @@ async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await message.reply_text(history_text, parse_mode="Markdown")
 
+async def start_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    message = update.message
+    
+    web_app = WebAppInfo(url="megagame-production.up.railway.app")
+    button = InlineKeyboardButton(text="Играть в Agar.io", web_app=web_app)
+    keyboard = InlineKeyboardMarkup([[button]])
+    
+    await message.reply_text("Нажми кнопку, чтобы запустить Agar.io!", reply_markup=keyboard)
+
 def main():
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
@@ -273,6 +282,7 @@ def main():
     app.add_handler(MessageHandler(filters.Regex(r'^!(кто|кого)\b'), who))
     app.add_handler(MessageHandler(filters.Regex(r'^!ник\b'), set_nickname))
     app.add_handler(MessageHandler(filters.Regex(r'^!история\b'), show_history))
+    app.add_handler(MessageHandler(filters.Regex(r'^!игра\b'), start_game))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     print("Бот запущен...")
     app.run_polling()
